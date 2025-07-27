@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -8,6 +9,11 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from app.symptom_classifier import classify_symptom
+from app.timeline_parser import extract_week
+from app.timeline_checker import check_symptoms_by_week
+from app.triage_engine import run_triage_questions
+from app.combo_checker import infer_symptom_combinations
 
 # Load environment variables
 load_dotenv()
@@ -127,24 +133,68 @@ Focus on being a helpful pregnancy health expert."""),
             logger.error(f"❌ Initialization failed: {e}")
             return False
 
-    def process_question(self, query: str) -> str:
+    def process_question(self, query: str) -> dict:
         try:
             print("🤔 Processing your question...")
-            
+                
+            # 1. Step: LLM-generated final answer (chat-style)
             result = self.agent_executor.invoke({"input": query})
             final_response = result.get("output", "").strip()
 
             if not final_response:
-                return "I couldn't find a specific answer to your question. Please try rephrasing or ask a different question."
+                return {
+                    "message": "I couldn't find a specific answer to your question.",
+                    "risk_table": [],
+                    "raw_response": ""
+                }
+        
+            # 2. Step: Symptom parsing (example using regex or rule-based)
+            symptoms = classify_symptom(query)
+            symptom_combinations = infer_symptom_combinations(query)  # Like "headache + swelling" → preeclampsia
+            week = extract_week(query)
+            timeline_results = check_symptoms_by_week(week, query) if week else [] # e.g., "6 weeks" → ectopic risk
 
-            # Format the response professionally
+            print("detected symptoms:", symptoms)
+            print("detected combinations:", symptom_combinations)
+            print("timeline results:", timeline_results)
+
+            # 4. Step: Risk Table (structured response)
+            risk_table = []
+            if symptom_combinations:
+                for combo, risk in symptom_combinations:
+                    risk_table.append({
+                        "Symptoms": combo,
+                        "Risk Condition": risk,
+                        "Recommended Action": "Seek immediate medical attention" if risk.lower() in ["preeclampsia", "ectopic pregnancy"] else "Monitor and consult OB-GYN"
+                    })
+
+            # # Format the response professionally
             formatted_response = self._format_response(final_response)
 
-            return formatted_response
+            # 5. Step: Construct structured response
+            response_payload = {
+                "message": formatted_response,
+                "risk_table": risk_table,
+                "symptoms": symptoms,
+                "symptom_combinations": symptom_combinations,
+                "timeline_results": timeline_results,
+                "raw_response": result,
+            }
+
+            
+
+            return response_payload
+            # return response_payload
         except Exception as e:
             logger.error(f"❌ Error processing question: {e}")
-            return f"Sorry, I encountered an error while processing your question. Please try again."
-    
+            return {
+                "message": "Sorry, an error occurred while processing your question.",
+                "risk_table": [],
+                "raw_response": "",
+                "timeline_results": [],
+                "symptom_combinations": [],
+                "symptoms": [],
+            }    
     def get_sources_for_question(self, query: str) -> list:
         """Get sources used for a question (for terminal display)"""
         try:
@@ -212,11 +262,12 @@ Focus on being a helpful pregnancy health expert."""),
             formatted_text += " ⚠️ **Medical Disclaimer:** This information is for educational purposes only. Always consult with your healthcare provider for personalized medical advice."
         
         return formatted_text
+        
 
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("🏥 PREGNANCY AI ASSISTANT")
+    print("🏥 I'M NURANEST: PREGNANCY AI ASSISTANT")
     print("=" * 60)
     print("📚 Knowledge Base: WHO, NIH, CDC, NHS, Mayo Clinic")
     print("🤖 Powered by: Groq Llama3-8b")
@@ -235,18 +286,94 @@ if __name__ == "__main__":
                     break
                 if not question:
                     continue
+
+                full_context = ""
+
+                # extract week if applicable
+                week = extract_week(question)
+                timeline_results = check_symptoms_by_week(week, question) if week else []
+
+                # symptom classification
+                classifications = classify_symptom(question)
+                combination_results = infer_symptom_combinations(question)
+
+                if timeline_results.__contains__(question) or combination_results.__contains__(question) or classifications.__contains__(question):
+                    print("⚠️ High-risk symptoms detected! Immediate medical attention is recommended.")
+                    # Process the question with the agent
+                    response = agent.process_question(question)
+                else:
+                    # Ask more questions proactively from the user
+                    user_data = run_triage_questions(question)
+                    # 🧠 Merge responses
+                    full_context = " ".join(user_data.values()).lower()
+
+                    # extract week if applicable
+                    week = extract_week(full_context)
+                    timeline_results = check_symptoms_by_week(week, full_context) if week else []
+
+                    # symptom classification
+                    classifications = classify_symptom(full_context)
+                    combination_results = infer_symptom_combinations(full_context)
+
+                    response = agent.process_question(full_context)
                 
-                response = agent.process_question(question)
-                print(f"\n🤖 AI Response:\n{response}")
                 
+
+                response_json = {
+                    "status": "success",
+                    "response": {
+                        "chatbot_answer": response,
+                        "symptom_combinations": combination_results,
+                        "timeline_conditions": timeline_results,
+                        "combination_inferences": combination_results, 
+                        },
+                "confidence_score": response.get("confidence_score", None),
+                # "timestamp": datetime.now().isoformat(),
+                "processing_time": response.get("processing_time", 0.0),
+                "risk_table": response.get("risk_table", []),
+                }
+                print(json.dumps(response_json, indent=2))
+
+                # Show classification results
+                if classifications:
+                    print("\n⚠️ Symptom Risk Summary:")
+                    for c in classifications:
+                        print(f"- '{c['matched_phrase']}' → Risk: {c['risk']}, Condition: {c['condition']}")
+                        print(f"  Suggested Action: {c['action']}")
+
+                if week and timeline_results:
+                    print("\n📅 Timeline-Aware Risk(s):")
+                    for res in timeline_results:
+                        print(f"- Week {week}: '{res['symptom']}' → {res['condition']} ({res['risk']})")
+                        print(f"  Action: {res['action']}")
+
+                if combination_results:
+                    print("\n🧩 Inferred Risk Combination(s):")
+                    for res in combination_results:
+                        print(f"- Symptoms: {', '.join(res['matched_symptoms'])} → {res['condition']} ({res['risk']})")
+                        print(f"  Urgent Action: {res['action']}")
+                else:
+                    print("\n✅ No high-risk symptom combinations detected.")
+
                 # Show sources used
-                sources = agent.get_sources_for_question(question)
-                if sources:
-                    print(f"\n📚 Sources used:")
-                    for i, source in enumerate(sources, 1):
-                        print(f"  {i}. {source}")
+                if full_context == "":
+                    print("\n🔍 No sources used for this question.")
+                    sources = agent.get_sources_for_question(question)
+                    if sources:
+                        print(f"\n📚 Sources used:")
+                        for i, source in enumerate(sources, 1):
+                            print(f"  {i}. {source}")
                 
-                print("\n" + "-" * 60)
+                    print("\n" + "-" * 60)
+                else:
+                    sources = agent.get_sources_for_question(full_context)
+                    if sources:
+                        print(f"\n📚 Sources used:")
+                        for i, source in enumerate(sources, 1):
+                            print(f"  {i}. {source}")
+                
+                    print("\n" + "-" * 60)
+                
                 
             except KeyboardInterrupt:
                 print("\n👋 Goodbye!")
