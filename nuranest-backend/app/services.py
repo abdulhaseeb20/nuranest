@@ -70,7 +70,8 @@ class PregnancyAIService:
                 answer=answer,
                 confidence_score=0.9,  # Default confidence score
                 processing_time=processing_time,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
+                sources=sources
             )
             
             logger.info(f"✅ Question processed successfully in {processing_time:.2f}s")
