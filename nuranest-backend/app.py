@@ -11,6 +11,11 @@ from app.config import settings
 from app.routers import api_router
 from app.services import pregnancy_service
 
+# Hugging Face Spaces configuration
+import os
+os.environ.setdefault("HOST", "0.0.0.0")
+os.environ.setdefault("PORT", "7860")
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
