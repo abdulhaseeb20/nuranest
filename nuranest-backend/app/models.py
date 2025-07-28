@@ -19,6 +19,10 @@ class QuestionResponse(BaseModel):
     symptom_combinations: list = Field(None, description="List of matched symptom combinations, if any")
     timeline_conditions: list = Field(None, description="List of matched conditions based on symptom timeline rules, if any")
     combination_inferences: list = Field(None, description="List of inferred symptom combinations from user input")
+    classifications: list = Field(None, description="List of classified symptoms from the question")
+    timeline_results: list = Field(None, description="List of conditions matched by week in the pregnancy timeline")
+    combination_results: list = Field(None, description="List of inferred symptom combinations based on user input")
+    sources: Optional[list] = Field(None, description="List of sources used to generate the answer")
     confidence_score: Optional[float] = Field(None, description="Confidence score of the answer")
     processing_time: float = Field(..., description="Time taken to process the question in seconds")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the response")
@@ -52,6 +56,32 @@ class QuestionResponse(BaseModel):
                         "matched_symptoms": ["mild nausea", "fatigue", "breast tenderness"]
                     }
                 ],
+                "classifications": [
+                    {
+                        "matched_phrase": "mild nausea",
+                        "condition": "Normal 1st trimester symptom",
+                        "risk": "Low",
+                        "action": "Self-monitor, routine prenatal follow-up"
+                    }
+                ],
+                "timeline_results": [
+                    {
+                        "symptom": "mild nausea",
+                        "condition": "Normal 1st trimester symptom",
+                        "risk": "Low",
+                        "action": "Self-monitor, routine prenatal follow-up",
+                        "week": 6
+                    }
+                ],
+                "combination_results": [
+                    {
+                        "matched_symptoms": ["mild nausea", "fatigue", "breast tenderness"],
+                        "condition": "Normal 1st trimester symptoms",
+                        "risk": "Low",
+                        "action": "Self-monitor, routine prenatal follow-up"
+                    }
+                ],
+                "sources": ["https://www.acog.org/womens-health/faqs/nutrition-during-pregnancy"],
                 "confidence_score": 0.92,
                 "processing_time": 1.5,
                 "timestamp": "2024-01-15T10:30:00Z"

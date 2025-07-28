@@ -182,7 +182,6 @@ Focus on being a helpful pregnancy health expert."""),
             }
 
             
-
             return response_payload
             # return response_payload
         except Exception as e:
