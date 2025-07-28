@@ -7,6 +7,12 @@ from .agents import PregnancyHealthAgent
 from .models import QuestionResponse
 from .config import settings
 
+from app.symptom_classifier import classify_symptom
+from app.timeline_parser import extract_week
+from app.timeline_checker import check_symptoms_by_week
+from app.triage_engine import run_triage_questions
+from app.combo_checker import infer_symptom_combinations
+
 logger = logging.getLogger(__name__)
 
 class PregnancyAIService:
@@ -38,6 +44,17 @@ class PregnancyAIService:
             self.initialization_error = str(e)
             logger.error(f"❌ Error initializing service: {e}")
             return False
+        
+    def get_risk_icon(self, risk: str) -> str:
+        risk = risk.lower()
+        if risk == "high":
+            return "🔴"
+        elif risk == "medium":
+            return "🟡"
+        elif risk == "low":
+            return "🟢"
+        return "⚪️"
+    
     
     async def ask_question(self, question: str) -> QuestionResponse:
         """Process a pregnancy health question"""
@@ -49,6 +66,14 @@ class PregnancyAIService:
             
             # Log the question
             logger.info(f"Question: {question}")
+
+            # extract week if applicable
+            week = extract_week(question)
+            timeline_results = check_symptoms_by_week(week, question) if week else []
+
+                # symptom classification
+            classifications = classify_symptom(question)
+            combination_results = infer_symptom_combinations(question)
             
             # Process the question
             answer = self.agent.process_question(question)
@@ -64,14 +89,41 @@ class PregnancyAIService:
             
             # Calculate processing time
             processing_time = time.time() - start_time
+
+            # Show classification results
+            if classifications:
+                print("\n⚠️ Symptom Risk Summary:")
+                for c in classifications:
+                    print(f"- '{c['matched_phrase']}' → Risk: {c['risk']}, Condition: {c['condition']}")
+                    print(f"  Suggested Action: {c['action']}")
+
+            if week and timeline_results:
+                print("\n📅 Timeline-Aware Risk(s):")
+                for res in timeline_results:
+                    print(f"- Week {week}: '{res['symptom']}' → {res['condition']} ({res['risk']})")
+                    print(f"  Action: {res['action']}")
+
+            if combination_results:
+                print("\n🧩 Inferred Risk Combination(s):")
+                for res in combination_results:
+                    print(f"- Symptoms: {', '.join(res['matched_symptoms'])} → {res['condition']} ({res['risk']})")
+                    print(f"  Urgent Action: {res['action']}")
+            else:
+                print("\n✅ No high-risk symptom combinations detected.")
             
             # Create response (without sources)
             response = QuestionResponse(
-                answer=answer,
+                answer=answer['message'],  # Use 'message' key from response
+                symptom_combinations=classifications,
+                timeline_conditions=timeline_results,
+                combination_inferences=combination_results,
+                classifications=classifications,
+                timeline_results=timeline_results,
+                combination_results=combination_results,
+                sources=sources,
                 confidence_score=0.9,  # Default confidence score
                 processing_time=processing_time,
-                timestamp=datetime.now(),
-                sources=sources
+                timestamp=datetime.now()
             )
             
             logger.info(f"✅ Question processed successfully in {processing_time:.2f}s")
