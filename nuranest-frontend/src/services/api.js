@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseURL: process.env.REACT_APP_API_URL || 'https://nuranest-backend.vercel.app/',
   timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ export const pregnancyAPI = {
 
   // Get API documentation URL
   getDocsUrl: () => {
-    return `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/docs`;
+    return `${process.env.REACT_APP_API_URL || 'https://nuranest-backend.vercel.app/'}/docs`;
   }
 };
 
