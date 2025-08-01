@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional,List
 from datetime import datetime
 
 class QuestionRequest(BaseModel):
@@ -26,6 +26,7 @@ class QuestionResponse(BaseModel):
     confidence_score: Optional[float] = Field(None, description="Confidence score of the answer")
     processing_time: float = Field(..., description="Time taken to process the question in seconds")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the response")
+    sources: Optional[List[str]] = Field(None, description="List of sources used for the answer")
     
     class Config:
         schema_extra = {
@@ -84,6 +85,11 @@ class QuestionResponse(BaseModel):
                 "sources": ["https://www.acog.org/womens-health/faqs/nutrition-during-pregnancy"],
                 "confidence_score": 0.92,
                 "processing_time": 1.5,
-                "timestamp": "2024-01-15T10:30:00Z"
+                "timestamp": "2024-01-15T10:30:00Z",
+                "sources": [
+                    "WHO Guidelines for Pregnancy Care",
+                    "American College of Obstetricians and Gynecologists",
+                    "Mayo Clinic Pregnancy Information"
+                ]
             }
         } 

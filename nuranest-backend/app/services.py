@@ -44,6 +44,17 @@ class PregnancyAIService:
             self.initialization_error = str(e)
             logger.error(f"❌ Error initializing service: {e}")
             return False
+        
+    def get_risk_icon(self, risk: str) -> str:
+        risk = risk.lower()
+        if risk == "high":
+            return "🔴"
+        elif risk == "medium":
+            return "🟡"
+        elif risk == "low":
+            return "🟢"
+        return "⚪️"
+    
     
     async def ask_question(self, question: str) -> QuestionResponse:
         """Process a pregnancy health question"""
