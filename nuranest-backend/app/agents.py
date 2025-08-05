@@ -14,6 +14,7 @@ from app.timeline_parser import extract_week
 from app.timeline_checker import check_symptoms_by_week
 from app.triage_engine import run_triage_questions
 from app.combo_checker import infer_symptom_combinations
+from app.generate_summary import generate_markdown_summary
 
 # Load environment variables
 load_dotenv()
@@ -153,10 +154,13 @@ Focus on being a helpful pregnancy health expert."""),
             symptom_combinations = infer_symptom_combinations(query)  # Like "headache + swelling" → preeclampsia
             week = extract_week(query)
             timeline_results = check_symptoms_by_week(week, query) if week else [] # e.g., "6 weeks" → ectopic risk
+            markdown = generate_markdown_summary(symptoms, timeline_results, symptom_combinations)
 
             print("detected symptoms:", symptoms)
             print("detected combinations:", symptom_combinations)
             print("timeline results:", timeline_results)
+            print("markdown summary:", markdown)
+
 
             # 4. Step: Risk Table (structured response)
             risk_table = []
@@ -179,6 +183,7 @@ Focus on being a helpful pregnancy health expert."""),
                 "symptom_combinations": symptom_combinations,
                 "timeline_results": timeline_results,
                 "raw_response": result,
+                "markdown_summary": markdown,
             }
 
             
@@ -193,7 +198,8 @@ Focus on being a helpful pregnancy health expert."""),
                 "timeline_results": [],
                 "symptom_combinations": [],
                 "symptoms": [],
-            }    
+            }   
+         
     def get_sources_for_question(self, query: str) -> list:
         """Get sources used for a question (for terminal display)"""
         try:
@@ -213,6 +219,7 @@ Focus on being a helpful pregnancy health expert."""),
         except Exception as e:
             logger.error(f"Error getting sources: {e}")
             return []
+        
 
     def _format_response(self, response: str) -> str:
         """Format the response in a professional manner"""
@@ -315,7 +322,6 @@ if __name__ == "__main__":
                     combination_results = infer_symptom_combinations(full_context)
 
                     response = agent.process_question(full_context)
-                
                 
 
                 response_json = {

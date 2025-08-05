@@ -12,6 +12,7 @@ from app.timeline_parser import extract_week
 from app.timeline_checker import check_symptoms_by_week
 from app.triage_engine import run_triage_questions
 from app.combo_checker import infer_symptom_combinations
+from app.generate_summary import generate_markdown_summary
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,9 @@ class PregnancyAIService:
                 # symptom classification
             classifications = classify_symptom(question)
             combination_results = infer_symptom_combinations(question)
+
+            # risk summary
+            markdown = generate_markdown_summary(classifications, timeline_results, combination_results)
             
             # Process the question
             answer = self.agent.process_question(question)
@@ -123,7 +127,8 @@ class PregnancyAIService:
                 sources=sources,
                 confidence_score=0.9,  # Default confidence score
                 processing_time=processing_time,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
+                markdown_summary=markdown
             )
             
             logger.info(f"✅ Question processed successfully in {processing_time:.2f}s")
@@ -139,7 +144,9 @@ class PregnancyAIService:
                 sources=[],
                 confidence_score=0.0,
                 processing_time=processing_time,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
+                markdown_summary="",
+                symptom_combinations=[],
             )
     
     async def _extract_sources(self, query: str) -> List[str]:

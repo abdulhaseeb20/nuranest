@@ -26,7 +26,8 @@ class QuestionResponse(BaseModel):
     confidence_score: Optional[float] = Field(None, description="Confidence score of the answer")
     processing_time: float = Field(..., description="Time taken to process the question in seconds")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the response")
-    sources: Optional[List[str]] = Field(None, description="List of sources used for the answer")
+    # sources: Optional[List[str]] = Field(None, description="List of sources used for the answer")
+    markdown_summary: Optional[str] = Field(None, description="Markdown formatted triage table with visual risk levels")
     
     class Config:
         schema_extra = {
@@ -90,6 +91,7 @@ class QuestionResponse(BaseModel):
                     "WHO Guidelines for Pregnancy Care",
                     "American College of Obstetricians and Gynecologists",
                     "Mayo Clinic Pregnancy Information"
-                ]
+                ],
+                "markdown_summary": "### Triage Summary\n\n| Condition | Risk Level | Action | Symptoms |\n|-----------|------------|--------|----------|\n| Preeclampsia | 🟥 High | Seek immediate medical attention | headache, swelling |\n| Normal pregnancy symptom | 🟢 Low | Monitor symptoms | nausea |\n| Normal 1st trimester symptoms | 🟢 Low | Self-monitor, routine prenatal follow-up | mild nausea, fatigue, breast tenderness |\n"
             }
         } 
