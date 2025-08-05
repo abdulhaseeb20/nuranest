@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "description": "Nuranest Pregnancy AI API - Vercel Deployment Configuration",
   "builds": [
     {
       "src": "app/main.py",
