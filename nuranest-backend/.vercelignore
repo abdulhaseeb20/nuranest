@@ -44,4 +44,13 @@ Thumbs.db
 
 # Local development
 .env
-.env.local 
+.env.local
+
+# Large data files
+medical_data/
+
+# Development files
+setup.py
+ingest_local.py
+pdf_analyzer.py
+retrieval_agent.py 

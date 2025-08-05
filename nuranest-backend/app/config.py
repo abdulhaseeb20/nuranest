@@ -46,4 +46,8 @@ settings = Settings()
 
 # Load environment variables
 if not settings.groq_api_key:
-    settings.groq_api_key = os.getenv("GROQ_API_KEY") 
+    settings.groq_api_key = os.getenv("GROQ_API_KEY")
+    
+# For Vercel deployment, ensure we have required environment variables
+if not settings.groq_api_key:
+    print("⚠️ Warning: GROQ_API_KEY not found. Please set it in Vercel environment variables.") 
